@@ -696,6 +696,25 @@ void Execution_Normal()
 void Execution_Program()
 {
   //TODO: IMPLEMENT 
+  // This is a fast patch...
+  print("Saving Configs to EEPROM...");
+
+  Configurations_t newConfigs;
+  uint8_t* confPtr = (uint8_t*)&newConfigs;
+  for(int i = 0; i < sizeof(Configurations_t); i++)
+  {
+    EEPROM.write(i, confPtr[i]);
+  }
+  print("\n\tSaving Complete...Verifying...");
+
+  for(int i = 0; i < sizeof(Configurations_t); i++)
+  {
+    if(EEPROM.read(i) != confPtr[i])
+    {
+      print("\n\tERROR! Configuration DOES NOT MATCH data saved to EEPROM!");
+      panic();
+    }
+  }
 }
 
 void Execution_Calibration()
