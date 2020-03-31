@@ -30,7 +30,7 @@ void (*OPERATION_FUNC)();
 enum VentilationMode
 {
   VENTILATION_CONTROLLED, // i.e, PC
-  VENTILATION_ASSISTED, // i.e, AC
+  VENTILATION_ASSISTED,   // i.e, AC
 };
 
 VentilationMode VENTILATION_MODE = VENTILATION_ASSISTED;
@@ -94,9 +94,9 @@ uint8_t MAP_PIN_MODE[256];
 /********************************************** General Configurations ***************************************************/
 /*************************************************************************************************************************/
 
-#define DEFAULT_BAUDRATE      57600
+#define DEFAULT_BAUDRATE 57600
 
-typedef struct Configurations 
+typedef struct Configurations
 {
   uint16_t CONF_LOOP_PERIOD = 0;
   uint16_t CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = 0;
@@ -104,20 +104,20 @@ typedef struct Configurations
   uint16_t CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD = 5;
 
   // DEFINE THESE SHITS BELOW !!!
-  float     TIME_INHALE_HOLDUP = 1;
-  float     TIME_EXHALE_HOLDUP = 1;
-  float     CONF_DISTANCE_MAX = 10;   //  DEFINE THIS SHIT
-  float     CONF_DISTANCE_MIN = 20;   // DEFINE THIS SHIT    
-  float     CONF_STEPPER_STEP_PER_REVOLUTION = 200;   // DEFINE THIS SHIT
-  float     CONF_STEPPER_DISTANCE_PER_REVOLUTION = 5;     // DEFINE THIS SHIT
+  float TIME_INHALE_HOLDUP = 1;
+  float TIME_EXHALE_HOLDUP = 1;
+  float CONF_DISTANCE_MAX = 10;                   //  DEFINE THIS SHIT
+  float CONF_DISTANCE_MIN = 20;                   // DEFINE THIS SHIT
+  float CONF_STEPPER_STEP_PER_REVOLUTION = 200;   // DEFINE THIS SHIT
+  float CONF_STEPPER_DISTANCE_PER_REVOLUTION = 5; // DEFINE THIS SHIT
 
   uint16_t CONF_POT_MAX[int(CONTROLS_size)] = {1024, 1024, 1024, 1024};
   uint16_t CONF_POT_MIN[int(CONTROLS_size)] = {0, 0, 0, 0};
   uint16_t CONF_POT_MID[int(CONTROLS_size)] = {512, 512, 512, 512};
 
-  float    CONF_interm_LFACTORS[int(CONTROLS_size)];
-  float    CONF_interm_RFACTORS[int(CONTROLS_size)];
-}Configurations_t;
+  float CONF_interm_LFACTORS[int(CONTROLS_size)];
+  float CONF_interm_RFACTORS[int(CONTROLS_size)];
+} Configurations_t;
 
 Configurations_t GlobalConfigs;
 
@@ -134,7 +134,7 @@ Configurations_t GlobalConfigs;
 
 // For BMP180 -->
 
-#if defined(BMP180) 
+#if defined(BMP180)
 
 #include <BMP180I2C.h>
 #define BMP_I2C_ADDRESS 0x77
@@ -143,18 +143,19 @@ BMP180I2C bmp180(BMP_I2C_ADDRESS);
 
 void sensorPressureInit()
 {
-	//begin() initializes the interface, checks the sensor ID and reads the calibration parameters.  
-	if (!bmp180.begin())
-	{
-		Serial.println("begin() failed. check your BMP180 Interface and I2C Address.");
-		while (1);
-	}
+  //begin() initializes the interface, checks the sensor ID and reads the calibration parameters.
+  if (!bmp180.begin())
+  {
+    print("begin() failed. check your BMP180 Interface and I2C Address.");
+    while (1)
+      ;
+  }
 
-	//reset sensor to default parameters.
-	bmp180.resetToDefaults();
+  //reset sensor to default parameters.
+  bmp180.resetToDefaults();
 
-	//enable ultra high resolution mode for pressure measurements
-	bmp180.setSamplingMode(BMP180MI::MODE_UHR);
+  //enable ultra high resolution mode for pressure measurements
+  bmp180.setSamplingMode(BMP180MI::MODE_UHR);
 }
 
 float OLD_PRESSURE = 0;
@@ -162,16 +163,16 @@ float OLD_PRESSURE = 0;
 float fetchSensorsPressure()
 {
   if (!bmp180.measurePressure())
-	{
-		print("could not start perssure measurement, is a measurement already running?");
-		return OLD_PRESSURE;
-	}
+  {
+    print("could not start perssure measurement, is a measurement already running?");
+    return OLD_PRESSURE;
+  }
 
-	//wait for the measurement to finish. proceed as soon as hasValue() returned true. 
-	do
-	{
-		delay(100);
-	} while (!bmp180.hasValue());
+  //wait for the measurement to finish. proceed as soon as hasValue() returned true.
+  do
+  {
+    delay(100);
+  } while (!bmp180.hasValue());
 
   OLD_PRESSURE = bmp180.getPressure();
   return OLD_PRESSURE;
@@ -182,7 +183,7 @@ float fetchSensorsPressure()
 // Motor Interfacing/Abstraction Logic -->
 //////////////////////////////////////////
 
-#include "AccelStepper.h" 
+#include "AccelStepper.h"
 
 AccelStepper *stepperDriver;
 
@@ -191,7 +192,7 @@ void actuateStepperForwardBlock(float distance, float timePeriod)
   float rotationsNeeded = distance / GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION;
   float stepsNeeded = rotationsNeeded * GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION;
   float stepSpeed = stepsNeeded / timePeriod;
-//  stepperDriver->distanceToGo(stepsNeeded);
+  //  stepperDriver->distanceToGo(stepsNeeded);
   stepperDriver->move(stepsNeeded);
   stepperDriver->setMaxSpeed(stepSpeed);
   stepperDriver->setSpeed(stepSpeed);
@@ -214,8 +215,8 @@ void actuateStepperBackwardBlock(float distance, float timePeriod)
   float rotationsNeeded = distance / GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION;
   float stepsNeeded = rotationsNeeded * GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION;
   float stepSpeed = stepsNeeded / timePeriod;
-//  stepperDriver->distanceToGo(-stepsNeeded);
-  stepperDriver->move(-stepsNeeded - 1);  // -1 for compensation
+  //  stepperDriver->distanceToGo(-stepsNeeded);
+  stepperDriver->move(-stepsNeeded - 1); // -1 for compensation
   stepperDriver->setMaxSpeed(-stepSpeed);
   stepperDriver->setSpeed(-stepSpeed);
   stepperDriver->runSpeedToPosition();
@@ -257,12 +258,22 @@ void sendAlarm(int counts = 0, int toneDelay = 0, int freq = 1000)
 
 void print(String str)
 {
-  Serial.println(str);
+  print(str);
 }
 
 void printerSetup()
 {
   Serial.begin(DEFAULT_BAUDRATE);
+}
+
+String readString()
+{
+  return Serial.readString();
+}
+
+int readInt()
+{
+  return Serial.parseInt();
 }
 
 ////////////////////////////
@@ -313,12 +324,12 @@ void registerPin(int pin, uint8_t mode)
 
 #include <EEPROM.h>
 
-void loadConfigFromEEPROM()
+void loadConfigFromEEPROM(Configurations_t *config)
 {
   print("\n\tLoading config from EEPROM");
 
-  uint8_t* confPtr = (uint8_t*)&GlobalConfigs;
-  for(int i = 0; i < sizeof(Configurations_t); i++)
+  uint8_t *confPtr = (uint8_t *)config;
+  for (int i = 0; i < sizeof(Configurations_t); i++)
   {
     confPtr[i] = EEPROM.read(i);
   }
@@ -326,20 +337,20 @@ void loadConfigFromEEPROM()
   print("\n\tLoading configs completed successfully!");
 }
 
-void saveConfigToEEPROM()
+void saveConfigToEEPROM(Configurations_t *config)
 {
   print("\n\tSaving config to EEPROM");
 
-  uint8_t* confPtr = (uint8_t*)&GlobalConfigs;
-  for(int i = 0; i < sizeof(Configurations_t); i++)
+  uint8_t *confPtr = (uint8_t *)config;
+  for (int i = 0; i < sizeof(Configurations_t); i++)
   {
     EEPROM.write(i, confPtr[i]);
   }
   print("\n\tSaving Complete...Verifying...");
 
-  for(int i = 0; i < sizeof(Configurations_t); i++)
+  for (int i = 0; i < sizeof(Configurations_t); i++)
   {
-    if(EEPROM.read(i) != confPtr[i])
+    if (EEPROM.read(i) != confPtr[i])
     {
       print("\n\tERROR! Configuration DOES NOT MATCH data saved to EEPROM!");
       panic();
@@ -355,11 +366,11 @@ void initHardware()
 {
   printerSetup();
   print("\nHardware Initialization in progress...");
-  loadConfigFromEEPROM();
+  loadConfigFromEEPROM(&GlobalConfigs);
   actuationInit();
   sensorPressureInit();
   registerPin(PIN_ALARM, (int)PINMODES_OUTPUT | (int)PINMODES_DIGITAL);
-  for(int i = 0; i < (int)CONTROLS_size; i++)
+  for (int i = 0; i < (int)CONTROLS_size; i++)
   {
     registerPin(PIN_POT[i], (int)PINMODES_INPUT | (int)PINMODES_ANALOG);
   }
@@ -375,6 +386,8 @@ void initHardware()
 ///////////////////////////////////////////
 // Utility Functions, Logics, Equations -->
 ///////////////////////////////////////////
+
+#define Stringify(Variable) (#Variable)
 
 void panic()
 {
@@ -453,30 +466,30 @@ int getOperationalMode()
   int operationMode = getPinValue(PIN_SWITCH_MODE_OPERATION);
   int ventilationMode = getPinValue(PIN_SWITCH_MODE_VENTILATION);
 
-  if(ventilationMode)
+  if (ventilationMode)
   {
-    if(operationMode)
+    if (operationMode)
     {
       // This is Calibration Mode!
       return (int)OPERATION_CALIBRATION;
     }
-    else 
+    else
     {
       // This is Controlled Ventilation Mode i.e, PC Mode
       VENTILATION_MODE = VENTILATION_CONTROLLED;
       return (int)OPERATION_NORMAL;
     }
   }
-  else 
+  else
   {
-    if(operationMode)
+    if (operationMode)
     {
-      // This is Programming mode! 
+      // This is Programming mode!
       return (int)OPERATION_PROGRAM;
     }
-    else 
+    else
     {
-      // This is Assisted Ventilation Mode i.e, AC Mode 
+      // This is Assisted Ventilation Mode i.e, AC Mode
       VENTILATION_MODE == VENTILATION_ASSISTED;
       return (int)OPERATION_NORMAL;
     }
@@ -489,7 +502,7 @@ int getOperationalMode()
 
 inline void updateControls()
 {
-  for(int i = 0; i < (int)CONTROLS_size; i++)
+  for (int i = 0; i < (int)CONTROLS_size; i++)
   {
     REG_POT[i] = getControlValue(PIN_POT[i]);
   }
@@ -497,25 +510,25 @@ inline void updateControls()
 
 inline float fetchControlsBPM()
 {
-  // Scale goes from 0 to 60 BPM, mapped to values 0 to 255 
+  // Scale goes from 0 to 60 BPM, mapped to values 0 to 255
   return clamp(REG_POT[(int)CONTROLS_BPM], 0, 255, 0, 60);
 }
 
 inline float fetchControlsVOL()
 {
-  // Scale goes from 0 to 100 %, mapped to values 0 to 255 
+  // Scale goes from 0 to 100 %, mapped to values 0 to 255
   return clamp(REG_POT[(int)CONTROLS_VOL], 0, 255, 0, 100);
 }
 
 inline float fetchControlsPRES()
 {
-  // Scale goes from 0 to 50cm H2O , mapped to values 0 to 255 
+  // Scale goes from 0 to 50cm H2O , mapped to values 0 to 255
   return clamp(REG_POT[(int)CONTROLS_BPM], 0, 255, 0, 50);
 }
 
 inline float fetchControlsIE()
 {
-  // Scale goes from 1 to 6 BPM, mapped to values 0 to 255 
+  // Scale goes from 1 to 6 BPM, mapped to values 0 to 255
   return 1 / clamp(REG_POT[(int)CONTROLS_BPM], 0, 255, 1, 6);
 }
 
@@ -591,7 +604,240 @@ void CalibrateControls()
 void CalibrationLogic()
 {
   CalibrateControls();
-  saveConfigToEEPROM();
+  saveConfigToEEPROM(&GlobalConfigs);
+}
+
+//////////////////////////////
+// Serial Programmer Logic -->
+//////////////////////////////
+
+void ProgrammerSerial_editConfigLogic()
+{
+  print("Enter config variable to edit...");
+  print("[1] CONF_LOOP_PERIOD");
+  print("[2] CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT");
+  print("[3] CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD");
+  print("[4] TIME_INHALE_HOLDUP");
+  print("[5] TIME_EXHALE_HOLDUP");
+  print("[6] CONF_DISTANCE_MAX");
+  print("[7] CONF_DISTANCE_MIN");
+  print("[8] CONF_STEPPER_STEP_PER_REVOLUTION");
+  print("[9] CONF_STEPPER_DISTANCE_PER_REVOLUTION");
+  print("[10] CONF_POT_MAX");
+  print("[11] CONF_POT_MIN");
+  print("[12] CONF_POT_MID");
+  print("[13] CONF_interm_LFACTORS");
+  print("[14] CONF_interm_RFACTORS");
+  print("[15] return to main menu");
+  print("Input> ");
+  int opt = readInt();
+  switch ()
+  {
+  case 1:
+    print("CONF_LOOP_PERIOD is ");
+    print(GlobalConfigs.CONF_LOOP_PERIOD);
+    print("NewValue> ");
+    GlobalConfigs.CONF_LOOP_PERIOD = (uint16_t)readInt();
+    break;
+  case 2:
+    print("CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT is ");
+    print(GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT);
+    print("NewValue> ");
+    GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = (uint16_t)readInt();
+    break;
+  case 3:
+    print("CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD is ");
+    print(GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD);
+    print("NewValue> ");
+    GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD = (uint16_t)readInt();
+    break;
+  case 4:
+    print("TIME_INHALE_HOLDUP is ");
+    print(GlobalConfigs.TIME_INHALE_HOLDUP);
+    print("NewValue> ");
+    GlobalConfigs.TIME_INHALE_HOLDUP = readFloat();
+    break;
+  case 5:
+    print("TIME_EXHALE_HOLDUP is ");
+    print(GlobalConfigs.TIME_EXHALE_HOLDUP);
+    print("NewValue> ");
+    GlobalConfigs.TIME_EXHALE_HOLDUP = readFloat();
+    break;
+  case 6:
+    print("CONF_DISTANCE_MAX is ");
+    print(GlobalConfigs.CONF_DISTANCE_MAX);
+    print("NewValue> ");
+    GlobalConfigs.CONF_DISTANCE_MAX = readFloat();
+    break;
+  case 7:
+    print("CONF_DISTANCE_MIN is ");
+    print(GlobalConfigs.CONF_DISTANCE_MIN);
+    print("NewValue> ");
+    GlobalConfigs.CONF_DISTANCE_MIN = readFloat();
+    break;
+  case 8:
+    print("CONF_STEPPER_STEP_PER_REVOLUTION is ");
+    print(GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION);
+    print("NewValue> ");
+    GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION = readFloat();
+    break;
+  case 9:
+    print("CONF_STEPPER_DISTANCE_PER_REVOLUTION is ");
+    print(GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION);
+    print("NewValue> ");
+    GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION = readFloat();
+    break;
+  case 10:
+    print("CONF_POT_MAX is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      print(GlobalConfigs.CONF_POT_MAX[i]);
+    }
+    print("NewValues> ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      GlobalConfigs.CONF_POT_MAX[i] = (uint16_t)readInt();
+    }
+    break;
+  case 11:
+    print("CONF_POT_MIN is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      print(GlobalConfigs.CONF_POT_MIN[i]);
+    }
+    print("NewValues> ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      GlobalConfigs.CONF_POT_MIN[i] = (uint16_t)readInt();
+    }
+    break;
+  case 12:
+    print("CONF_POT_MID is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      print(GlobalConfigs.CONF_POT_MID[i]);
+    }
+    print("NewValues> ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      GlobalConfigs.CONF_POT_MID[i] = (uint16_t)readInt();
+    }
+    break;
+  case 13:
+    print("CONF_interm_LFACTORS is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      print(GlobalConfigs.CONF_interm_LFACTORS[i]);
+    }
+    print("NewValues> ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      GlobalConfigs.CONF_interm_LFACTORS[i] = readInt();
+    }
+    break;
+  case 14:
+    print("CONF_interm_RFACTORS is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      print(GlobalConfigs.CONF_interm_RFACTORS[i]);
+    }
+    print("NewValues> ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      GlobalConfigs.CONF_interm_RFACTORS[i] = readInt();
+    }
+    break;
+  case 15:
+    return;
+    break;
+  default:
+    print("Wrong Choice entered!");
+  }
+}
+
+void ProgrammerSerial_displayConfigs()
+{
+  print("The Values are -->");
+  print("CONF_LOOP_PERIOD is ");
+  print(GlobalConfigs.CONF_LOOP_PERIOD);
+  print("CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT is ");
+  print(GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT);
+  print("CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD is ");
+  print(GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD);
+  print("TIME_INHALE_HOLDUP is ");
+  print(GlobalConfigs.TIME_INHALE_HOLDUP);
+  print("TIME_EXHALE_HOLDUP is ");
+  print(GlobalConfigs.TIME_EXHALE_HOLDUP);
+  print("CONF_DISTANCE_MAX is ");
+  print(GlobalConfigs.CONF_DISTANCE_MAX);
+  print("CONF_DISTANCE_MIN is ");
+  print(GlobalConfigs.CONF_DISTANCE_MIN);
+  print("CONF_STEPPER_STEP_PER_REVOLUTION is ");
+  print(GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION);
+  print("CONF_STEPPER_DISTANCE_PER_REVOLUTION is ");
+  print(GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION);
+  print("CONF_POT_MAX is ");
+  for (int i = 0; i < int(CONTROLS_size); i++)
+  {
+    print(GlobalConfigs.CONF_POT_MAX[i]);
+  }
+  print("CONF_POT_MIN is ");
+  for (int i = 0; i < int(CONTROLS_size); i++)
+  {
+    print(GlobalConfigs.CONF_POT_MIN[i]);
+  }
+  print("CONF_POT_MID is ");
+  for (int i = 0; i < int(CONTROLS_size); i++)
+  {
+    print(GlobalConfigs.CONF_POT_MID[i]);
+  }
+  print("CONF_interm_LFACTORS is ");
+  for (int i = 0; i < int(CONTROLS_size); i++)
+  {
+    print(GlobalConfigs.CONF_interm_LFACTORS[i]);
+  }
+  print("CONF_interm_RFACTORS is ");
+  for (int i = 0; i < int(CONTROLS_size); i++)
+  {
+    print(GlobalConfigs.CONF_interm_RFACTORS[i]);
+  }
+}
+
+void ProgrammerSerial_Logic()
+{
+  int state = 0;
+  while (1)
+  {
+    print("\nWelcome to Main Menu\nEnter your choice...");
+    print("[1] edit configuration");
+    print("[2] save configuration");
+    print("[3] load configuration");
+    print("[4] show configuration");
+    print("[5] exit");
+    print("Input> ");
+    int opt = readInt();
+    switch (opt)
+    {
+    case 1:
+      ProgrammerSerial_editConfigLogic();
+      break;
+    case 2:
+      saveConfigToEEPROM(&GlobalConfigs);
+      break;
+    case 3:
+      loadConfigToEEPROM(&GlobalConfigs);
+      break;
+    case 4:
+      ProgrammerSerial_displayConfigs();
+      break;
+    case 5:
+      print("Exiting...");
+      return;
+      break;
+    default:
+      print("Wrong Choice entered!");
+    }
+  }
 }
 
 //////////////////////////////////
@@ -601,14 +847,14 @@ void CalibrationLogic()
 void Ventilation_Assisted_Compression(float timePeriod, float linearDisplacement)
 {
   // float requiredVelocity = getRequiredVelocity(timePeriod, linearDisplacement);
-  // For now, Simple logic to simply move the motor to desired position 
-  actuateStepperForwardBlock(linearDisplacement, timePeriod);  // This is a blocking call
+  // For now, Simple logic to simply move the motor to desired position
+  actuateStepperForwardBlock(linearDisplacement, timePeriod); // This is a blocking call
 }
 
 void Ventilation_Assisted_InhaleHoldup(float timePeriod, float plateauPressureThreshold)
 {
   float plateauPressure = fetchSensorsPressure();
-  if(plateauPressure <= plateauPressureThreshold)
+  if (plateauPressure <= plateauPressureThreshold)
   {
     alarm_LowPlateauPressure();
   }
@@ -627,12 +873,12 @@ void Ventilation_Assisted_Decompression(float timePeriod, float linearDisplaceme
 
 int Ventilation_Assisted_PatientResponseLogic()
 {
-  // For RESPONSE_WAIT_TIME seconds, keep fetching Pressure, and 
-  // return if Pressure drops below GlobalConfigs.CONF_AC_MIN_PRESSURE 
+  // For RESPONSE_WAIT_TIME seconds, keep fetching Pressure, and
+  // return if Pressure drops below GlobalConfigs.CONF_AC_MIN_PRESSURE
   float initialPressure = fetchSensorsPressure();
-  for(int i = 0; i < 700; i++)
+  for (int i = 0; i < 700; i++)
   {
-    if(initialPressure - fetchSensorsPressure() <= GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD)
+    if (initialPressure - fetchSensorsPressure() <= GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD)
     {
       return 0;
     }
@@ -687,66 +933,53 @@ void Logic_ControlledVentilation()
 void Execution_Normal()
 {
   updateControls();
-  if(VENTILATION_FUNC != nullptr)
+  if (VENTILATION_FUNC != nullptr)
     VENTILATION_FUNC();
-  else 
+  else
     print("ERROR! Ventilation Function Pointer is NULL!");
 }
 
 void Execution_Program()
 {
-  //TODO: IMPLEMENT 
+  //TODO: IMPLEMENT
   // This is a fast patch...
   print("Saving Configs to EEPROM...");
-
-  Configurations_t newConfigs;
-  uint8_t* confPtr = (uint8_t*)&newConfigs;
-  for(int i = 0; i < sizeof(Configurations_t); i++)
-  {
-    EEPROM.write(i, confPtr[i]);
-  }
-  print("\n\tSaving Complete...Verifying...");
-
-  for(int i = 0; i < sizeof(Configurations_t); i++)
-  {
-    if(EEPROM.read(i) != confPtr[i])
-    {
-      print("\n\tERROR! Configuration DOES NOT MATCH data saved to EEPROM!");
-      panic();
-    }
-  }
+  // Configurations_t newConfigs;
+  // saveConfigToEEPROM(&newConfigs)
+  ProgrammerSerial_Logic();
 }
 
 void Execution_Calibration()
 {
   CalibrationLogic();
   print("\nCalibration Complete! You may now restart the device...");
-  while(1);
+  while (1)
+    ;
 }
 
 void ExecuteProperLogic()
 {
   int mode = getOperationalMode();
-  switch(mode)
+  switch (mode)
   {
-    case (int)OPERATION_NORMAL:
-        print("\nExecuting in Normal Mode...");
-        // OPERATION_FUNC = &Execution_Normal;
-        Execution_Normal();
-      break;
-    case (int)OPERATION_PROGRAM:
-        print("\nExecuting in Programing Mode...");
-        // OPERATION_FUNC = &Execution_Program;
-        Execution_Program();
-      break;
-    case (int)OPERATION_CALIBRATION:
-        print("\nExecuting in Calibration Mode...");
-        // OPERATION_FUNC = &Execution_Calibration;
-        Execution_Calibration();
-      break;
-    default:
-        print("ERROR! Wrong Operational Mode!");
-        panic();
+  case (int)OPERATION_NORMAL:
+    print("\nExecuting in Normal Mode...");
+    // OPERATION_FUNC = &Execution_Normal;
+    Execution_Normal();
+    break;
+  case (int)OPERATION_PROGRAM:
+    print("\nExecuting in Programing Mode...");
+    // OPERATION_FUNC = &Execution_Program;
+    Execution_Program();
+    break;
+  case (int)OPERATION_CALIBRATION:
+    print("\nExecuting in Calibration Mode...");
+    // OPERATION_FUNC = &Execution_Calibration;
+    Execution_Calibration();
+    break;
+  default:
+    print("ERROR! Wrong Operational Mode!");
+    panic();
   }
 }
 
@@ -764,6 +997,6 @@ void loop()
 {
   // put your main code here, to run repeatedly:
   ExecuteProperLogic();
-  if(GlobalConfigs.CONF_LOOP_PERIOD != 0)
+  if (GlobalConfigs.CONF_LOOP_PERIOD != 0)
     delay(GlobalConfigs.CONF_LOOP_PERIOD);
 }
