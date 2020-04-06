@@ -151,17 +151,17 @@ void printVal(float val)
 
 void printVal(int val)
 {
-  Serial.println(String(val));
+  Serial.println(String((float)val));
 }
 
 void printVal(uint8_t val)
 {
-  Serial.println(String(val));
+  Serial.println(String((float)val));
 }
 
 void printVal(uint16_t val)
 {
-  Serial.println(String(val));
+  Serial.println(String((float)val));
 }
 
 void printerSetup()
@@ -176,11 +176,13 @@ String readString()
 
 int readInt()
 {
+  while(!Serial.available());
   return Serial.parseInt();
 }
 
 int readFloat()
 {
+  while(!Serial.available());
   return Serial.parseFloat();
 }
 
@@ -302,7 +304,9 @@ void actuateStepperForwardBlock(float distance, float timePeriod)
 
 void actuateStepperBackwardBlock(float distance, float timePeriod)
 {
-
+  print("Actuate Stepper Backward for distance, timePeriod: ");
+  printVal(distance);
+  printVal(timePeriod);
 }
 
 void actuationInit()
@@ -330,14 +334,14 @@ void sendAlarm(int counts = 0, int toneDelay = 0, int freq = 1000)
 // Pin level Abstraction -->
 ////////////////////////////
 
-int getPinValue(uint8_t pin, uint8_t mode = -1)
+int getPinValue(uint8_t pin, int mode = -1)
 {
   int val = 0;
   if (mode == -1)
   {
     mode = (MAP_PIN_MODE[pin] & PINMODE_METHOD);
   }
-  switch ((int)mode)
+  switch (mode)
   {
   case (int)PINMODES_ANALOG:
     val = analogRead(pin);
@@ -349,8 +353,9 @@ int getPinValue(uint8_t pin, uint8_t mode = -1)
     val = pulseIn(pin, HIGH);
     break;
   default:
-    print("ERROR: WRONG PINMODE ENTERED!!!!");
-    return -1;
+    // print("ERROR: WRONG PINMODE ENTERED!!!!");
+    // return -1;
+    val = -1;
   }
   return val;
 }
@@ -526,6 +531,7 @@ int getOperationalMode()
     else
     {
       // This is Controlled Ventilation Mode i.e, PC Mode
+      VENTILATION_FUNC = &Logic_ControlledVentilation;
       VENTILATION_MODE = VENTILATION_CONTROLLED;
       return (int)OPERATION_NORMAL;
     }
@@ -540,6 +546,7 @@ int getOperationalMode()
     else
     {
       // This is Assisted Ventilation Mode i.e, AC Mode
+      VENTILATION_FUNC = &Logic_AssistedVentilation;
       VENTILATION_MODE == VENTILATION_ASSISTED;
       return (int)OPERATION_NORMAL;
     }
