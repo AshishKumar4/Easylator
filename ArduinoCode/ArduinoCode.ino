@@ -5,6 +5,14 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+
+// #define BMP180
+// #define SENSOR_PRESSURE_TYPE BMP180
+
+// #define STEPPER_ACCELSTEPPER
+// #define STEPPER   STEPPER_ACCELSTEPPER
+
+
 /*************************************************************************************************************************/
 /*************************************** Registers to hold Important Values **********************************************/
 /*************************************************************************************************************************/
@@ -36,7 +44,7 @@ enum VentilationMode
 VentilationMode VENTILATION_MODE = VENTILATION_ASSISTED;
 void (*VENTILATION_FUNC)() = nullptr;
 
-int CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = 0;
+// int CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = 0;
 
 /////////////////////////////
 // Potentiometer Registers-->
@@ -57,25 +65,25 @@ float REG_POT[int(CONTROLS_size)] = {0, 0, 0, 0};
 // General Registers-->
 ///////////////////////
 
-float REG_SENSOR_FLOW = 0;
-float REG_SENSOR_PRESSURE = 0;
+// float REG_SENSOR_FLOW = 0;
+// float REG_SENSOR_PRESSURE = 0;
 
 /*************************************************************************************************************************/
 /******************************************** Registers to hold Pin Values ***********************************************/
 /*************************************************************************************************************************/
 
-int PIN_ALARM = 2;
+uint8_t PIN_ALARM = 10;
 
-int PIN_POT[int(CONTROLS_size)] = {A0, A1, A2, A3};
+uint8_t PIN_POT[int(CONTROLS_size)] = {A0, A1, A2, A3};
 
-int PIN_SWITCH_MODE_OPERATION = 4;
-int PIN_SWITCH_MODE_VENTILATION = 7;
+uint8_t PIN_SWITCH_MODE_OPERATION = 4;
+uint8_t PIN_SWITCH_MODE_VENTILATION = 7;
 
-int PIN_SENSOR_PRESSURE;
-int PIN_SENSOR_FLOW;
+uint8_t PIN_SENSOR_PRESSURE;
+uint8_t PIN_SENSOR_FLOW;
 
-int PIN_STEPPER_STEP = 2;
-int PIN_STEPPER_DIR = 3;
+uint8_t PIN_STEPPER_STEP = 2;
+uint8_t PIN_STEPPER_DIR = 3;
 
 enum PinModes
 {
@@ -125,17 +133,65 @@ Configurations_t GlobalConfigs;
 /******************************************** Hardware Abstraction Layer *************************************************/
 /*************************************************************************************************************************/
 
+///////////////////////////////////
+// Printing/UserInterface Logic -->
+///////////////////////////////////
+
+#define print(str)   (Serial.println(F(str)))
+
+// void printVal str)
+// {
+//   Serial.println(str);
+// }
+
+void printVal(float val)
+{
+  Serial.println(String(val));
+}
+
+void printVal(int val)
+{
+  Serial.println(String(val));
+}
+
+void printVal(uint8_t val)
+{
+  Serial.println(String(val));
+}
+
+void printVal(uint16_t val)
+{
+  Serial.println(String(val));
+}
+
+void printerSetup()
+{
+  Serial.begin(DEFAULT_BAUDRATE);
+}
+
+String readString()
+{
+  return Serial.readString();
+}
+
+int readInt()
+{
+  return Serial.parseInt();
+}
+
+int readFloat()
+{
+  return Serial.parseFloat();
+}
+
 ////////////////////////////////////////////
 // Sensors Interfacing/Abstraction Logic -->
 ////////////////////////////////////////////
 
-#define BMP180
-#define SENSOR_PRESSURE_TYPE BMP180
-
 // For BMP180 -->
 
 #if defined(BMP180)
-
+// Uses the https://bitbucket.org/christandlg/bmp180mi/src/master/ BMP180MI library by grigor
 #include <BMP180I2C.h>
 #define BMP_I2C_ADDRESS 0x77
 
@@ -178,10 +234,25 @@ float fetchSensorsPressure()
   return OLD_PRESSURE;
 }
 
+#else 
+
+void sensorPressureInit()
+{
+  print("Pressure Sensor Not used!");
+}
+
+
+float fetchSensorsPressure()
+{
+  return 0;
+}
+
 #endif
 //////////////////////////////////////////
 // Motor Interfacing/Abstraction Logic -->
 //////////////////////////////////////////
+
+#if defined(STEPPER_ACCELSTEPPER)
 
 #include "AccelStepper.h"
 
@@ -197,15 +268,6 @@ void actuateStepperForwardBlock(float distance, float timePeriod)
   stepperDriver->setMaxSpeed(stepSpeed);
   stepperDriver->setSpeed(stepSpeed);
   stepperDriver->runSpeedToPosition();
-  // Wait until rotationsNeeded are completed
-  // for(int i = 0; i < 1000000; i++)  // Just to implement a form of timeout
-  // {
-  //   if(stepperDriver->currentPosition() >= stepsNeeded)
-  //   {
-  //     stepperDriver->stop();
-  //     break;
-  //   }
-  // }
   delay(timePeriod);
   stepperDriver->stop();
 }
@@ -220,15 +282,6 @@ void actuateStepperBackwardBlock(float distance, float timePeriod)
   stepperDriver->setMaxSpeed(-stepSpeed);
   stepperDriver->setSpeed(-stepSpeed);
   stepperDriver->runSpeedToPosition();
-  // Wait until rotationsNeeded are completed
-  // for(int i = 0; i < 1000000; i++)  // Just to implement a form of timeout
-  // {
-  //   if(stepperDriver->currentPosition() >= stepsNeeded)
-  //   {
-  //     stepperDriver->stop();
-  //     break;
-  //   }
-  // }
   delay(timePeriod);
   stepperDriver->stop();
 }
@@ -237,6 +290,27 @@ void actuationInit()
 {
   stepperDriver = new AccelStepper(1, PIN_STEPPER_STEP, PIN_STEPPER_DIR);
 }
+
+#else 
+
+void actuateStepperForwardBlock(float distance, float timePeriod)
+{
+  print("Actuate Stepper forward for distance, timePeriod: ");
+  printVal(distance);
+  printVal(timePeriod);
+}
+
+void actuateStepperBackwardBlock(float distance, float timePeriod)
+{
+
+}
+
+void actuationInit()
+{
+  print("Actuator not used!");
+}
+
+#endif
 
 //////////////////
 // Alarm Logic -->
@@ -252,42 +326,18 @@ void sendAlarm(int counts = 0, int toneDelay = 0, int freq = 1000)
   }
 }
 
-///////////////////////////////////
-// Printing/UserInterface Logic -->
-///////////////////////////////////
-
-void print(String str)
-{
-  print(str);
-}
-
-void printerSetup()
-{
-  Serial.begin(DEFAULT_BAUDRATE);
-}
-
-String readString()
-{
-  return Serial.readString();
-}
-
-int readInt()
-{
-  return Serial.parseInt();
-}
-
 ////////////////////////////
 // Pin level Abstraction -->
 ////////////////////////////
 
-int getPinValue(int pin, int mode = -1)
+int getPinValue(uint8_t pin, uint8_t mode = -1)
 {
   int val = 0;
   if (mode == -1)
   {
-    mode = MAP_PIN_MODE[pin] & PINMODE_METHOD;
+    mode = (MAP_PIN_MODE[pin] & PINMODE_METHOD);
   }
-  switch (mode)
+  switch ((int)mode)
   {
   case (int)PINMODES_ANALOG:
     val = analogRead(pin);
@@ -305,7 +355,7 @@ int getPinValue(int pin, int mode = -1)
   return val;
 }
 
-void registerPin(int pin, uint8_t mode)
+void registerPin(uint8_t pin, uint8_t mode)
 {
   MAP_PIN_MODE[pin] = mode;
   if (mode & PINMODE_IO == (int)PINMODES_INPUT)
@@ -631,59 +681,59 @@ void ProgrammerSerial_editConfigLogic()
   print("[15] return to main menu");
   print("Input> ");
   int opt = readInt();
-  switch ()
+  switch (opt)
   {
   case 1:
     print("CONF_LOOP_PERIOD is ");
-    print(GlobalConfigs.CONF_LOOP_PERIOD);
+    printVal(GlobalConfigs.CONF_LOOP_PERIOD);
     print("NewValue> ");
     GlobalConfigs.CONF_LOOP_PERIOD = (uint16_t)readInt();
     break;
   case 2:
     print("CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT is ");
-    print(GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT);
+    printVal(GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT);
     print("NewValue> ");
     GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = (uint16_t)readInt();
     break;
   case 3:
     print("CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD is ");
-    print(GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD);
+    printVal(GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD);
     print("NewValue> ");
     GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD = (uint16_t)readInt();
     break;
   case 4:
     print("TIME_INHALE_HOLDUP is ");
-    print(GlobalConfigs.TIME_INHALE_HOLDUP);
+    printVal(GlobalConfigs.TIME_INHALE_HOLDUP);
     print("NewValue> ");
     GlobalConfigs.TIME_INHALE_HOLDUP = readFloat();
     break;
   case 5:
     print("TIME_EXHALE_HOLDUP is ");
-    print(GlobalConfigs.TIME_EXHALE_HOLDUP);
+    printVal(GlobalConfigs.TIME_EXHALE_HOLDUP);
     print("NewValue> ");
     GlobalConfigs.TIME_EXHALE_HOLDUP = readFloat();
     break;
   case 6:
     print("CONF_DISTANCE_MAX is ");
-    print(GlobalConfigs.CONF_DISTANCE_MAX);
+    printVal(GlobalConfigs.CONF_DISTANCE_MAX);
     print("NewValue> ");
     GlobalConfigs.CONF_DISTANCE_MAX = readFloat();
     break;
   case 7:
     print("CONF_DISTANCE_MIN is ");
-    print(GlobalConfigs.CONF_DISTANCE_MIN);
+    printVal(GlobalConfigs.CONF_DISTANCE_MIN);
     print("NewValue> ");
     GlobalConfigs.CONF_DISTANCE_MIN = readFloat();
     break;
   case 8:
     print("CONF_STEPPER_STEP_PER_REVOLUTION is ");
-    print(GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION);
+    printVal(GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION);
     print("NewValue> ");
     GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION = readFloat();
     break;
   case 9:
     print("CONF_STEPPER_DISTANCE_PER_REVOLUTION is ");
-    print(GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION);
+    printVal(GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION);
     print("NewValue> ");
     GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION = readFloat();
     break;
@@ -691,7 +741,7 @@ void ProgrammerSerial_editConfigLogic()
     print("CONF_POT_MAX is ");
     for (int i = 0; i < int(CONTROLS_size); i++)
     {
-      print(GlobalConfigs.CONF_POT_MAX[i]);
+      printVal(GlobalConfigs.CONF_POT_MAX[i]);
     }
     print("NewValues> ");
     for (int i = 0; i < int(CONTROLS_size); i++)
@@ -703,7 +753,7 @@ void ProgrammerSerial_editConfigLogic()
     print("CONF_POT_MIN is ");
     for (int i = 0; i < int(CONTROLS_size); i++)
     {
-      print(GlobalConfigs.CONF_POT_MIN[i]);
+      printVal(GlobalConfigs.CONF_POT_MIN[i]);
     }
     print("NewValues> ");
     for (int i = 0; i < int(CONTROLS_size); i++)
@@ -715,7 +765,7 @@ void ProgrammerSerial_editConfigLogic()
     print("CONF_POT_MID is ");
     for (int i = 0; i < int(CONTROLS_size); i++)
     {
-      print(GlobalConfigs.CONF_POT_MID[i]);
+      printVal(GlobalConfigs.CONF_POT_MID[i]);
     }
     print("NewValues> ");
     for (int i = 0; i < int(CONTROLS_size); i++)
@@ -727,7 +777,7 @@ void ProgrammerSerial_editConfigLogic()
     print("CONF_interm_LFACTORS is ");
     for (int i = 0; i < int(CONTROLS_size); i++)
     {
-      print(GlobalConfigs.CONF_interm_LFACTORS[i]);
+      printVal(GlobalConfigs.CONF_interm_LFACTORS[i]);
     }
     print("NewValues> ");
     for (int i = 0; i < int(CONTROLS_size); i++)
@@ -739,7 +789,7 @@ void ProgrammerSerial_editConfigLogic()
     print("CONF_interm_RFACTORS is ");
     for (int i = 0; i < int(CONTROLS_size); i++)
     {
-      print(GlobalConfigs.CONF_interm_RFACTORS[i]);
+      printVal(GlobalConfigs.CONF_interm_RFACTORS[i]);
     }
     print("NewValues> ");
     for (int i = 0; i < int(CONTROLS_size); i++)
@@ -759,47 +809,47 @@ void ProgrammerSerial_displayConfigs()
 {
   print("The Values are -->");
   print("CONF_LOOP_PERIOD is ");
-  print(GlobalConfigs.CONF_LOOP_PERIOD);
+  printVal(GlobalConfigs.CONF_LOOP_PERIOD);
   print("CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT is ");
-  print(GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT);
+  printVal(GlobalConfigs.CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT);
   print("CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD is ");
-  print(GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD);
+  printVal(GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD);
   print("TIME_INHALE_HOLDUP is ");
-  print(GlobalConfigs.TIME_INHALE_HOLDUP);
+  printVal(GlobalConfigs.TIME_INHALE_HOLDUP);
   print("TIME_EXHALE_HOLDUP is ");
-  print(GlobalConfigs.TIME_EXHALE_HOLDUP);
+  printVal(GlobalConfigs.TIME_EXHALE_HOLDUP);
   print("CONF_DISTANCE_MAX is ");
-  print(GlobalConfigs.CONF_DISTANCE_MAX);
+  printVal(GlobalConfigs.CONF_DISTANCE_MAX);
   print("CONF_DISTANCE_MIN is ");
-  print(GlobalConfigs.CONF_DISTANCE_MIN);
+  printVal(GlobalConfigs.CONF_DISTANCE_MIN);
   print("CONF_STEPPER_STEP_PER_REVOLUTION is ");
-  print(GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION);
+  printVal(GlobalConfigs.CONF_STEPPER_STEP_PER_REVOLUTION);
   print("CONF_STEPPER_DISTANCE_PER_REVOLUTION is ");
-  print(GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION);
+  printVal(GlobalConfigs.CONF_STEPPER_DISTANCE_PER_REVOLUTION);
   print("CONF_POT_MAX is ");
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
-    print(GlobalConfigs.CONF_POT_MAX[i]);
+    printVal(GlobalConfigs.CONF_POT_MAX[i]);
   }
   print("CONF_POT_MIN is ");
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
-    print(GlobalConfigs.CONF_POT_MIN[i]);
+    printVal(GlobalConfigs.CONF_POT_MIN[i]);
   }
   print("CONF_POT_MID is ");
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
-    print(GlobalConfigs.CONF_POT_MID[i]);
+    printVal(GlobalConfigs.CONF_POT_MID[i]);
   }
   print("CONF_interm_LFACTORS is ");
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
-    print(GlobalConfigs.CONF_interm_LFACTORS[i]);
+    printVal(GlobalConfigs.CONF_interm_LFACTORS[i]);
   }
   print("CONF_interm_RFACTORS is ");
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
-    print(GlobalConfigs.CONF_interm_RFACTORS[i]);
+    printVal(GlobalConfigs.CONF_interm_RFACTORS[i]);
   }
 }
 
@@ -825,7 +875,7 @@ void ProgrammerSerial_Logic()
       saveConfigToEEPROM(&GlobalConfigs);
       break;
     case 3:
-      loadConfigToEEPROM(&GlobalConfigs);
+      loadConfigFromEEPROM(&GlobalConfigs);
       break;
     case 4:
       ProgrammerSerial_displayConfigs();
