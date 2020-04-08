@@ -125,7 +125,7 @@ typedef struct Configurations
   float CONF_STEPPER_DISTANCE_PER_REVOLUTION = 5; // DEFINE THIS SHIT
 
   uint16_t CONF_POT_MAX[int(CONTROLS_size)] = {1024, 1024, 1024, 1024};
-  uint16_t CONF_POT_MIN[int(CONTROLS_size)] = {0, 0, 0, 0};
+  uint16_t CONF_POT_MIN[int(CONTROLS_size)] = {1, 1, 1, 1};
   uint16_t CONF_POT_MID[int(CONTROLS_size)] = {512, 512, 512, 512};
 
   float CONF_interm_LFACTORS[int(CONTROLS_size)];
@@ -512,18 +512,20 @@ inline float getRequiredVelocity(float timePeriod, float distance)
   return distance / timePeriod;
 }
 
-int getControlValue(int pin)
+int getControlValue(int controlId)
 {
-  double val = double(getPinValue(pin));
+  float val = float(getPinValue(PIN_POT[controlId]));
+  // printVal(val);
   // Eq --> ((no-ni)/(bo-bi))*(a-bi) + ni; (no-ni)*(bo-bi) is our factor
   // We take into account the mid stick values
-  if (val <= GlobalConfigs.CONF_POT_MID[pin])
+
+  if (val <= (float)GlobalConfigs.CONF_POT_MID[controlId])
   {
-    val = ((val - GlobalConfigs.CONF_POT_MIN[pin]) * GlobalConfigs.CONF_interm_LFACTORS[pin]);
+    val = ((val - (float)GlobalConfigs.CONF_POT_MIN[controlId]) * GlobalConfigs.CONF_interm_LFACTORS[controlId]);
   }
   else
   {
-    val = ((val - GlobalConfigs.CONF_POT_MID[pin]) * GlobalConfigs.CONF_interm_RFACTORS[pin]) + 127.5;
+    val = ((val - (float)GlobalConfigs.CONF_POT_MID[controlId]) * GlobalConfigs.CONF_interm_RFACTORS[controlId]) + 127.5;
   }
   if (val < 0)
     val = 0;
@@ -576,9 +578,10 @@ int getOperationalMode()
 
 inline void updateControls()
 {
+  // print("Raw Fetched Values---->");
   for (int i = 0; i < (int)CONTROLS_size; i++)
   {
-    REG_POT[i] = getControlValue(PIN_POT[i]);
+    REG_POT[i] = getControlValue(i);
   }
 }
 
@@ -615,31 +618,31 @@ void CalibrateControls()
   // First operator should put all Pot dials to minimum values -- >
   // Send 2 alarm pulses seperated by 100ms to signify its ready for calibration
   print("\nReady for calibration...");
-  print("\n\tSet all dials to minimum values in 5 seconds...");
+  print("\n\tSet all dials to minimum values in 10 seconds...");
   sendAlarm(2, 100);
   // Wait for 5 seconds
-  delay(5000);
+  delay(10000);
   // Get the POT values
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
     GlobalConfigs.CONF_POT_MIN[i] = getPinValue(PIN_POT[i]);
   }
 
-  print("\n\tSet all dials to maximum values in 5 seconds...");
+  print("\n\tSet all dials to maximum values in 10 seconds...");
   // Second, Operator needs to put all POTS to their maximum -->
   sendAlarm(1, 100);
   // Wait for 5 seconds
-  delay(5000);
+  delay(10000);
   // Get the POT values
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
     GlobalConfigs.CONF_POT_MAX[i] = getPinValue(PIN_POT[i]);
   }
 
-  print("\n\tSet all dials to middle values in 5 seconds...");
+  print("\n\tSet all dials to middle values in 10 seconds...");
   sendAlarm(1, 100);
   // Wait for 5 seconds
-  delay(5000);
+  delay(10000);
   // Get the POT values
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
@@ -648,6 +651,9 @@ void CalibrateControls()
 
   print("\n\tGot Data, Calibrating...");
   sendAlarm(3, 200);
+
+  // print("Want to reverse POT Direction?\n[1] Yes\n[2] No\n>");
+  // int rev = readInt();
   // Incase you stupidly put wrong wiring ...
   for (int i = 0; i < 4; i++)
   {
@@ -663,15 +669,25 @@ void CalibrateControls()
   for (int i = 0; i < int(CONTROLS_size); i++)
   {
     if (GlobalConfigs.CONF_POT_MID[i] - GlobalConfigs.CONF_POT_MIN[i] != 0)
-      GlobalConfigs.CONF_interm_LFACTORS[i] = (127.5 / double(GlobalConfigs.CONF_POT_MID[i] - GlobalConfigs.CONF_POT_MIN[i]));
+      GlobalConfigs.CONF_interm_LFACTORS[i] = (127.5 / float(GlobalConfigs.CONF_POT_MID[i] - GlobalConfigs.CONF_POT_MIN[i]));
     else
       GlobalConfigs.CONF_interm_LFACTORS[i] = (1);
     if (GlobalConfigs.CONF_POT_MAX[i] - GlobalConfigs.CONF_POT_MID[i] != 0)
-      GlobalConfigs.CONF_interm_RFACTORS[i] = (127.5 / double(GlobalConfigs.CONF_POT_MAX[i] - GlobalConfigs.CONF_POT_MID[i]));
+      GlobalConfigs.CONF_interm_RFACTORS[i] = (127.5 / float(GlobalConfigs.CONF_POT_MAX[i] - GlobalConfigs.CONF_POT_MID[i]));
     else
       GlobalConfigs.CONF_interm_RFACTORS[i] = (1);
   }
 
+    print("CONF_interm_LFACTORS is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      printVal(GlobalConfigs.CONF_interm_LFACTORS[i]);
+    }
+    print("CONF_interm_RFACTORS is ");
+    for (int i = 0; i < int(CONTROLS_size); i++)
+    {
+      printVal(GlobalConfigs.CONF_interm_RFACTORS[i]);
+    }
   print("\n\tCalibration Completed...");
 }
 
@@ -982,8 +998,13 @@ void Logic_AssistedVentilation()
   float CurrentBPM = fetchControlsBPM();
   float ie = fetchControlsIE();
   float maxVolume = fetchControlsVOL();
-
   float plateauPressure = fetchControlsPRES();
+
+  print("Fetched Values for BPM, IE, maxVolume, Pressure: ");
+  printVal(CurrentBPM);
+  printVal(ie);
+  printVal(maxVolume);
+  printVal(plateauPressure);
 
   float totalPeriod = getTotalPeriod(CurrentBPM);
   float inspiratoryPeriod = getInspiratoryPeriod(totalPeriod, ie);
@@ -1034,9 +1055,10 @@ void Execution_Program()
 void Execution_Calibration()
 {
   CalibrationLogic();
-  print("\nCalibration Complete! You may now restart the device...");
-  while (1)
-    ;
+  print("\nCalibration Complete! Turn off calibration mode, waiting for 10 seconds...");
+  delay(10000);
+  // while (1)
+  //   ;
 }
 
 void ExecuteProperLogic()
