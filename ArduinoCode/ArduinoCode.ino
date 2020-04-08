@@ -326,14 +326,17 @@ void actuationInit()
 // Alarm Logic -->
 //////////////////
 
-void sendAlarm(int counts = 0, int toneDelay = 0, int freq = 1000)
+void sendAlarm(int counts = 0, int toneDelay = 0, int freq = 1000, int toneWidth = 60)
 {
   for (int i = 0; i < counts; i++)
   {
     // Start with 2 beeps
     tone(PIN_ALARM, freq);
+    delay(toneWidth);
+    tone(PIN_ALARM, 0);
     delay(toneDelay);
   }
+  tone(PIN_ALARM, 0);
 }
 
 ////////////////////////////
