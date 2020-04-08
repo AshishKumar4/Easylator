@@ -42,7 +42,7 @@ enum VentilationMode
 };
 
 VentilationMode VENTILATION_MODE = VENTILATION_ASSISTED;
-void (*VENTILATION_FUNC)() = nullptr;
+void (*VENTILATION_FUNC)() = 0;
 
 // int CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = 0;
 
@@ -104,12 +104,17 @@ uint8_t MAP_PIN_MODE[256];
 
 #define DEFAULT_BAUDRATE 57600
 
+#define FLAG_CONF_FIRSTRUN  1 << 1
+
 typedef struct Configurations
-{
+{ 
+  // First byte is always FLAGS!
+  uint8_t   FLAGS;
+
   uint16_t CONF_LOOP_PERIOD = 0;
   uint16_t CONF_VENTILATION_ASSISTED_BREATEWAIT_TIMEOUT = 0;
 
-  uint16_t CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD = 5;
+  uint16_t CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD = 1;
 
   // DEFINE THESE SHITS BELOW !!!
   float TIME_INHALE_HOLDUP = 1;
@@ -125,6 +130,7 @@ typedef struct Configurations
 
   float CONF_interm_LFACTORS[int(CONTROLS_size)];
   float CONF_interm_RFACTORS[int(CONTROLS_size)];
+
 } Configurations_t;
 
 Configurations_t GlobalConfigs;
@@ -379,7 +385,7 @@ void registerPin(uint8_t pin, uint8_t mode)
 
 #include <EEPROM.h>
 
-void loadConfigFromEEPROM(Configurations_t *config)
+void loadConfigFromEEPROM(void *config)
 {
   print("\n\tLoading config from EEPROM");
 
@@ -392,7 +398,7 @@ void loadConfigFromEEPROM(Configurations_t *config)
   print("\n\tLoading configs completed successfully!");
 }
 
-void saveConfigToEEPROM(Configurations_t *config)
+void saveConfigToEEPROM(void *config)
 {
   print("\n\tSaving config to EEPROM");
 
@@ -421,7 +427,18 @@ void initHardware()
 {
   printerSetup();
   print("\nHardware Initialization in progress...");
-  loadConfigFromEEPROM(&GlobalConfigs);
+  // loadConfigFromEEPROM((void*)&GlobalConfigs);
+  uint8_t ConfFlags = EEPROM.read(0);
+  if(!(ConfFlags & FLAG_CONF_FIRSTRUN))
+  {
+    // This is the first time the system is online, revert to default configs
+    saveConfigToEEPROM((void*)&GlobalConfigs);
+    EEPROM.write(0, ConfFlags | FLAG_CONF_FIRSTRUN);
+  }
+  else 
+  {
+    loadConfigFromEEPROM((void*)&GlobalConfigs);
+  }
   actuationInit();
   sensorPressureInit();
   registerPin(PIN_ALARM, (int)PINMODES_OUTPUT | (int)PINMODES_DIGITAL);
@@ -661,7 +678,7 @@ void CalibrateControls()
 void CalibrationLogic()
 {
   CalibrateControls();
-  saveConfigToEEPROM(&GlobalConfigs);
+  saveConfigToEEPROM((void*)&GlobalConfigs);
 }
 
 //////////////////////////////
@@ -870,7 +887,8 @@ void ProgrammerSerial_Logic()
     print("[2] save configuration");
     print("[3] load configuration");
     print("[4] show configuration");
-    print("[5] exit");
+    print("[5] reset configuration");
+    print("[6] exit");
     print("Input> ");
     int opt = readInt();
     switch (opt)
@@ -879,15 +897,21 @@ void ProgrammerSerial_Logic()
       ProgrammerSerial_editConfigLogic();
       break;
     case 2:
-      saveConfigToEEPROM(&GlobalConfigs);
+      saveConfigToEEPROM((void*)&GlobalConfigs);
       break;
     case 3:
-      loadConfigFromEEPROM(&GlobalConfigs);
+      loadConfigFromEEPROM((void*)&GlobalConfigs);
       break;
     case 4:
       ProgrammerSerial_displayConfigs();
       break;
     case 5:
+      {
+        Configurations_t newConfigs;
+        saveConfigToEEPROM((void*)&newConfigs);
+      }
+      break;
+    case 6:
       print("Exiting...");
       return;
       break;
@@ -933,6 +957,7 @@ int Ventilation_Assisted_PatientResponseLogic()
   // For RESPONSE_WAIT_TIME seconds, keep fetching Pressure, and
   // return if Pressure drops below GlobalConfigs.CONF_AC_MIN_PRESSURE
   float initialPressure = fetchSensorsPressure();
+  
   for (int i = 0; i < 700; i++)
   {
     if (initialPressure - fetchSensorsPressure() <= GlobalConfigs.CONF_VENTILATION_ASSISTED_PRESSURE_TRIGGER_THRESHOLD)
@@ -990,7 +1015,7 @@ void Logic_ControlledVentilation()
 void Execution_Normal()
 {
   updateControls();
-  if (VENTILATION_FUNC != nullptr)
+  if (VENTILATION_FUNC != 0)
     VENTILATION_FUNC();
   else
     print("ERROR! Ventilation Function Pointer is NULL!");
